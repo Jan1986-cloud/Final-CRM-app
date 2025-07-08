@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PlusCircle, Search } from "lucide-react";
 import type { Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ function useClients() {
 
 export default function ClientsPage() {
   const clients = useClients();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<Record<string, boolean>>({
     Lead: true,
@@ -135,26 +136,28 @@ export default function ClientsPage() {
             </TableHeader>
             <TableBody>
               {filteredClients.map((client) => (
-                <TableRow key={client.id} asChild>
-                   <Link href={`/clients/${client.id}`} className="cursor-pointer">
-                      <TableCell className="font-medium">
-                        {client.name}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {client.email}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        {client.phone}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={client.status === 'Active' ? 'default' : client.status === 'Lead' ? 'secondary' : 'destructive'}>
-                          {client.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {format(new Date(client.createdAt), "MMM d, yyyy")}
-                      </TableCell>
-                    </Link>
+                <TableRow
+                  key={client.id}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/clients/${client.id}`)}
+                >
+                  <TableCell className="font-medium">
+                    {client.name}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {client.email}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    {client.phone}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={client.status === 'Active' ? 'default' : client.status === 'Lead' ? 'secondary' : 'destructive'}>
+                      {client.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {format(new Date(client.createdAt), "MMM d, yyyy")}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
