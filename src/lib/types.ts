@@ -36,3 +36,22 @@ export type Document = {
   totaal_btw_bedrag: number;
   totaal_incl_btw: number;
 };
+
+export type ArticlePhoto = {
+  foto_url: string;
+  foto_omschrijving: string;
+};
+
+export type Article = {
+  id: string;
+  artikel_naam: string;
+  artikel_omschrijving_kort: string;
+  artikel_omschrijving_lang: string;
+  artikel_fotos: ArticlePhoto[];
+  artikel_urls: string[];
+  artikel_magazijnlocatie: string;
+  artikel_prijs_excl_btw: number;
+  artikel_korting_percentage: number;
+  artikel_btw_percentage: number;
+  artikel_eenheid: string;
+};

@@ -1,4 +1,4 @@
-import type { Client, Company, Document } from './types';
+import type { Client, Company, Document, Article } from './types';
 
 export const clients: Client[] = [
   {
@@ -70,6 +70,13 @@ export const documents: Document[] = [
     { id: 'doc5', klant_id: '3', clientName: 'Quantum Industries', document_type: 'Quote', document_nummer: 'Q-202303-002', document_datum: '2023-03-11T09:00:00Z', document_status: 'Sent', regels: [], totaal_subtotaal_excl_btw: 5000, totaal_btw_bedrag: 1050, totaal_incl_btw: 6050 },
 ];
 
+export const articles: Article[] = [
+    { id: 'art1', artikel_naam: 'Pro Widget', artikel_omschrijving_kort: 'An advanced widget for all your needs.', artikel_omschrijving_lang: 'This Pro Widget is built with the highest quality materials and designed for professionals. It features a sleek design, robust functionality, and seamless integration with our other products.', artikel_fotos: [{ foto_url: 'https://placehold.co/600x400.png', foto_omschrijving: 'Front view of the Pro Widget' }], artikel_urls: ['https://example.com/pro-widget'], artikel_magazijnlocatie: 'Aisle 5, Shelf C', artikel_prijs_excl_btw: 99.99, artikel_korting_percentage: 10, artikel_btw_percentage: 21, artikel_eenheid: 'piece' },
+    { id: 'art2', artikel_naam: 'Basic Gadget', artikel_omschrijving_kort: 'A reliable and affordable gadget.', artikel_omschrijving_lang: 'The Basic Gadget provides all the essential features you need at an unbeatable price. Perfect for everyday use and simple tasks. Comes with a one-year warranty.', artikel_fotos: [{ foto_url: 'https://placehold.co/600x400.png', foto_omschrijving: 'The Basic Gadget in its packaging' }], artikel_urls: [], artikel_magazijnlocatie: 'Aisle 2, Shelf A', artikel_prijs_excl_btw: 24.50, artikel_korting_percentage: 0, artikel_btw_percentage: 21, artikel_eenheid: 'piece' },
+    { id: 'art3', artikel_naam: 'Ultra Gizmo', artikel_omschrijving_kort: 'The ultimate gizmo for power users.', artikel_omschrijving_lang: 'Experience unparalleled performance with the Ultra Gizmo. Featuring a multi-core processor, high-resolution display, and an all-day battery life. This is the top-of-the-line model for those who demand the best.', artikel_fotos: [{ foto_url: 'https://placehold.co/600x400.png', foto_omschrijving: 'Side view' }, { foto_url: 'https://placehold.co/600x400.png', foto_omschrijving: 'Close-up on the controls' }], artikel_urls: ['https://example.com/ultra-gizmo', 'https://example.com/ultra-gizmo/reviews'], artikel_magazijnlocatie: 'Secure Vault 1', artikel_prijs_excl_btw: 299.00, artikel_korting_percentage: 0, artikel_btw_percentage: 21, artikel_eenheid: 'piece' },
+];
+
+
 // Functions to simulate data fetching
 export async function getClients(): Promise<Client[]> {
   return clients;
@@ -90,6 +97,15 @@ export async function getDocumentById(id: string): Promise<Document | undefined>
 export async function getCompany(): Promise<Company> {
   return company;
 }
+
+export async function getArticles(): Promise<Article[]> {
+    return articles;
+}
+
+export async function getArticleById(id: string): Promise<Article | undefined> {
+    return articles.find(a => a.id === id);
+}
+
 
 // Functions to simulate data mutation
 export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): Promise<Client> {
@@ -138,4 +154,22 @@ export async function createDocument(klant_id: string, document_type: Document['
     };
     documents.unshift(newDoc);
     return newDoc;
+}
+
+export async function addArticle(articleData: Omit<Article, 'id'>): Promise<Article> {
+    const newArticle: Article = {
+        id: `art-${Date.now()}`,
+        ...articleData,
+    };
+    articles.unshift(newArticle);
+    return newArticle;
+}
+
+export async function updateArticle(id: string, articleData: Partial<Omit<Article, 'id'>>): Promise<Article> {
+    const articleIndex = articles.findIndex(a => a.id === id);
+    if (articleIndex === -1) throw new Error('Article not found');
+    
+    const updatedArticle = { ...articles[articleIndex], ...articleData };
+    articles[articleIndex] = updatedArticle;
+    return updatedArticle;
 }

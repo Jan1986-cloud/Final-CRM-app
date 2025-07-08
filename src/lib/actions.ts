@@ -2,8 +2,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addClient, updateClient, createDocument as createDocumentData } from './data';
-import type { Client, Document } from './types';
+import { addClient, updateClient, createDocument as createDocumentData, addArticle, updateArticle } from './data';
+import type { Client, Document, Article } from './types';
 import * as z from 'zod';
 import { redirect } from 'next/navigation';
 
@@ -57,4 +57,53 @@ export async function createDocumentAction(data: { klant_id: string; document_ty
     
     revalidatePath('/documents');
     redirect(`/documents/${newDocument.id}`);
+}
+
+const articleSchema = z.object({
+    artikel_naam: z.string().min(2, "Name must be at least 2 characters."),
+    artikel_omschrijving_kort: z.string().min(5, "Short description is required."),
+    artikel_omschrijving_lang: z.string().optional(),
+    artikel_fotos: z.array(z.object({
+        foto_url: z.string().url("Invalid URL format."),
+        foto_omschrijving: z.string().min(3, "Photo description is required."),
+    })).optional(),
+    artikel_urls: z.array(z.object({
+        value: z.string().url("Invalid URL format.")
+    })).optional(),
+    artikel_magazijnlocatie: z.string().optional(),
+    artikel_prijs_excl_btw: z.coerce.number().min(0, "Price must be a positive number."),
+    artikel_korting_percentage: z.coerce.number().min(0).max(100).optional(),
+    artikel_btw_percentage: z.coerce.number().min(0).max(100),
+    artikel_eenheid: z.string().min(1, "Unit is required."),
+});
+
+export async function saveArticleAction(data: z.infer<typeof articleSchema> & { id?: string }) {
+    // Transform urls from {value: string}[] to string[]
+    const transformedData = {
+        ...data,
+        artikel_urls: data.artikel_urls?.map(u => u.value) || [],
+    };
+
+    const validatedFields = articleSchema.safeParse(transformedData);
+
+    if (!validatedFields.success) {
+        console.error(validatedFields.error.flatten().fieldErrors);
+        throw new Error("Invalid article data");
+    }
+
+    const { id, ...articleData } = validatedFields.data;
+    
+    let savedArticle;
+    if (id) {
+        savedArticle = await updateArticle(id, articleData);
+    } else {
+        savedArticle = await addArticle(articleData);
+    }
+    
+    revalidatePath('/articles');
+    if (id) {
+      revalidatePath(`/articles/${id}`);
+    }
+
+    return savedArticle;
 }
