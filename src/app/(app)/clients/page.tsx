@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { PlusCircle, Search } from "lucide-react";
 import type { Client } from "@/lib/types";
@@ -36,8 +36,18 @@ import { ClientForm } from "./client-form";
 import { clients as mockClients } from "@/lib/data";
 import { format } from "date-fns";
 
+// NOTE: In a real app, this data would be fetched from a server.
+// We use a trick with useEffect to avoid issues with mock data mutations in dev mode.
+function useClients() {
+    const [clients, setClients] = useState<Client[]>([]);
+    useEffect(() => {
+        setClients(mockClients);
+    }, []);
+    return clients;
+}
+
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const clients = useClients();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilters, setStatusFilters] = useState<Record<string, boolean>>({
     Lead: true,
@@ -125,28 +135,26 @@ export default function ClientsPage() {
             </TableHeader>
             <TableBody>
               {filteredClients.map((client) => (
-                <TableRow key={client.id} className="cursor-pointer">
-                  <TableCell>
-                    <Link href={`/clients/${client.id}`} className="font-medium hover:underline">
-                      {client.name}
+                <TableRow key={client.id} asChild>
+                   <Link href={`/clients/${client.id}`} className="cursor-pointer">
+                      <TableCell className="font-medium">
+                        {client.name}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {client.email}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {client.phone}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={client.status === 'Active' ? 'default' : client.status === 'Lead' ? 'secondary' : 'destructive'}>
+                          {client.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {format(new Date(client.createdAt), "MMM d, yyyy")}
+                      </TableCell>
                     </Link>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <Link href={`/clients/${client.id}`} className="hover:underline">
-                      {client.email}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    {client.phone}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={client.status === 'Active' ? 'default' : client.status === 'Lead' ? 'secondary' : 'destructive'}>
-                      {client.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {format(new Date(client.createdAt), "MMM d, yyyy")}
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

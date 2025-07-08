@@ -25,8 +25,14 @@ export type Company = {
 
 export type Document = {
   id: string;
-  clientName: string;
-  type: 'Quote' | 'Work Order' | 'Invoice';
-  createdAt: string;
-  status: 'Draft' | 'Sent' | 'Paid';
+  klant_id: string;
+  clientName: string; // For display convenience
+  document_type: 'Quote' | 'Work Order' | 'Invoice';
+  document_nummer: string;
+  document_datum: string; // ISO string
+  document_status: 'concept' | 'Draft' | 'Sent' | 'Paid';
+  regels: any[];
+  totaal_subtotaal_excl_btw: number;
+  totaal_btw_bedrag: number;
+  totaal_incl_btw: number;
 };

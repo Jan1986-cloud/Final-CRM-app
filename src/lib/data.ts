@@ -63,11 +63,11 @@ export const company: Company = {
 };
 
 export const documents: Document[] = [
-    { id: 'doc1', clientName: 'Innovate Corp', type: 'Quote', createdAt: '2023-01-16T10:00:00Z', status: 'Sent' },
-    { id: 'doc2', clientName: 'Solutions LLC', type: 'Invoice', createdAt: '2023-04-01T11:00:00Z', status: 'Paid' },
-    { id: 'doc3', clientName: 'Apex Enterprises', type: 'Work Order', createdAt: '2023-03-05T15:30:00Z', status: 'Draft' },
-    { id: 'doc4', clientName: 'Innovate Corp', type: 'Invoice', createdAt: '2023-02-15T12:00:00Z', status: 'Paid' },
-    { id: 'doc5', clientName: 'Quantum Industries', type: 'Quote', createdAt: '2023-03-11T09:00:00Z', status: 'Sent' },
+    { id: 'doc1', klant_id: '1', clientName: 'Innovate Corp', document_type: 'Quote', document_nummer: 'Q-202301-001', document_datum: '2023-01-16T10:00:00Z', document_status: 'Sent', regels: [], totaal_subtotaal_excl_btw: 1500, totaal_btw_bedrag: 315, totaal_incl_btw: 1815 },
+    { id: 'doc2', klant_id: '2', clientName: 'Solutions LLC', document_type: 'Invoice', document_nummer: 'I-202304-001', document_datum: '2023-04-01T11:00:00Z', document_status: 'Paid', regels: [], totaal_subtotaal_excl_btw: 200, totaal_btw_bedrag: 42, totaal_incl_btw: 242 },
+    { id: 'doc3', klant_id: '5', clientName: 'Apex Enterprises', document_type: 'Work Order', document_nummer: 'WO-202303-001',document_datum: '2023-03-05T15:30:00Z', document_status: 'Draft', regels: [], totaal_subtotaal_excl_btw: 3000, totaal_btw_bedrag: 630, totaal_incl_btw: 3630 },
+    { id: 'doc4', klant_id: '1', clientName: 'Innovate Corp', document_type: 'Invoice', document_nummer: 'I-202302-001', document_datum: '2023-02-15T12:00:00Z', document_status: 'Paid', regels: [], totaal_subtotaal_excl_btw: 1500, totaal_btw_bedrag: 315, totaal_incl_btw: 1815 },
+    { id: 'doc5', klant_id: '3', clientName: 'Quantum Industries', document_type: 'Quote', document_nummer: 'Q-202303-002', document_datum: '2023-03-11T09:00:00Z', document_status: 'Sent', regels: [], totaal_subtotaal_excl_btw: 5000, totaal_btw_bedrag: 1050, totaal_incl_btw: 6050 },
 ];
 
 // Functions to simulate data fetching
@@ -83,6 +83,59 @@ export async function getDocuments(): Promise<Document[]> {
   return documents;
 }
 
+export async function getDocumentById(id: string): Promise<Document | undefined> {
+    return documents.find(d => d.id === id);
+}
+
 export async function getCompany(): Promise<Company> {
   return company;
+}
+
+// Functions to simulate data mutation
+export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): Promise<Client> {
+    const newClient: Client = {
+        id: `c-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        ...clientData,
+    };
+    clients.unshift(newClient);
+    return newClient;
+}
+
+export async function updateClient(id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt'>>): Promise<Client> {
+    const clientIndex = clients.findIndex(c => c.id === id);
+    if (clientIndex === -1) throw new Error('Client not found');
+    
+    const updatedClient = { ...clients[clientIndex], ...clientData };
+    clients[clientIndex] = updatedClient;
+    return updatedClient;
+}
+
+export async function createDocument(klant_id: string, document_type: Document['document_type']): Promise<Document> {
+    const client = clients.find(c => c.id === klant_id);
+    if (!client) throw new Error("Client not found");
+
+    const prefix = {
+        'Quote': 'Q',
+        'Work Order': 'WO',
+        'Invoice': 'I'
+    }[document_type];
+    
+    const docCount = documents.filter(d => d.document_type === document_type).length;
+    
+    const newDoc: Document = {
+        id: `doc-${Date.now()}`,
+        document_type: document_type,
+        document_nummer: `${prefix}-${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2, '0')}-${(docCount + 1).toString().padStart(3,'0')}`,
+        document_datum: new Date().toISOString(),
+        document_status: 'concept',
+        klant_id: klant_id,
+        clientName: client.name,
+        regels: [],
+        totaal_subtotaal_excl_btw: 0,
+        totaal_btw_bedrag: 0,
+        totaal_incl_btw: 0,
+    };
+    documents.unshift(newDoc);
+    return newDoc;
 }

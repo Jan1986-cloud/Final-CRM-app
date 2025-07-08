@@ -25,6 +25,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { saveClientAction } from "@/lib/actions";
+import { Loader2 } from "lucide-react";
 
 const clientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -42,12 +45,14 @@ const clientSchema = z.object({
 
 type ClientFormProps = {
   client?: Client | null;
-  onFinished?: () => void;
+  onFinished?: (client: Client) => void;
 };
 
 export function ClientForm({ client, onFinished }: ClientFormProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
   const form = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
     defaultValues: client || {
@@ -61,13 +66,25 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
   });
 
   function onSubmit(values: z.infer<typeof clientSchema>) {
-    console.log(values);
-    toast({
-      title: client ? "Client Updated" : "Client Created",
-      description: `Client "${values.name}" has been successfully saved.`,
+    startTransition(async () => {
+      try {
+        const dataToSave = client ? { ...values, id: client.id } : values;
+        const savedClient = await saveClientAction(dataToSave);
+        toast({
+          title: client ? "Client Updated" : "Client Created",
+          description: `Client "${savedClient.name}" has been successfully saved.`,
+        });
+        onFinished?.(savedClient);
+        router.refresh();
+      } catch (error) {
+        console.error(error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to save client. Please try again.",
+        });
+      }
     });
-    onFinished?.();
-    router.refresh(); // Refresh data on the page
   }
 
   return (
@@ -80,7 +97,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
             <FormItem>
               <FormLabel>Full Name</FormLabel>
               <FormControl>
-                <Input placeholder="John Doe" {...field} />
+                <Input placeholder="John Doe" {...field} disabled={isPending} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -94,7 +111,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="john.doe@example.com" {...field} />
+                  <Input placeholder="john.doe@example.com" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -107,7 +124,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
               <FormItem>
                 <FormLabel>Phone</FormLabel>
                 <FormControl>
-                  <Input placeholder="(555) 123-4567" {...field} />
+                  <Input placeholder="(555) 123-4567" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -122,7 +139,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
                 <FormItem>
                 <FormLabel>Street Address</FormLabel>
                 <FormControl>
-                    <Input placeholder="123 Main St" {...field} />
+                    <Input placeholder="123 Main St" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -135,7 +152,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
                 <FormItem>
                 <FormLabel>City</FormLabel>
                 <FormControl>
-                    <Input placeholder="Anytown" {...field} />
+                    <Input placeholder="Anytown" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -150,7 +167,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
                 <FormItem>
                 <FormLabel>State / Province</FormLabel>
                 <FormControl>
-                    <Input placeholder="CA" {...field} />
+                    <Input placeholder="CA" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -163,7 +180,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
                 <FormItem>
                 <FormLabel>Zip / Postal Code</FormLabel>
                 <FormControl>
-                    <Input placeholder="12345" {...field} />
+                    <Input placeholder="12345" {...field} disabled={isPending} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -176,7 +193,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isPending}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select client status" />
@@ -203,6 +220,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
                   placeholder="Initial meeting details, client requirements, etc."
                   className="resize-none"
                   {...field}
+                  disabled={isPending}
                 />
               </FormControl>
               <FormDescription>
@@ -213,7 +231,10 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
           )}
         />
         <div className="flex justify-end">
-          <Button type="submit">{client ? "Save Changes" : "Create Client"}</Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="animate-spin" />}
+            {client ? "Save Changes" : "Create Client"}
+          </Button>
         </div>
       </form>
     </Form>

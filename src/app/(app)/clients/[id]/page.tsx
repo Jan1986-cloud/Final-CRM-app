@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, MapPin, Edit, Calendar, Info } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ClientForm } from "./client-form";
+import { ClientForm } from "../client-form";
+import { redirect } from 'next/navigation'
 
 export default async function ClientDetailPage({
   params,
@@ -45,8 +46,11 @@ export default async function ClientDetailPage({
                 </CardHeader>
                 <CardContent>
                     <ClientForm client={client} onFinished={() => {
-                        // In a real app, you would redirect after a form submission.
-                        // For now, we will rely on router.refresh() in the form component.
+                      // After saving, redirect to the detail view.
+                      // The form now handles revalidation. We will just navigate away from edit mode.
+                      // Next doesn't have a clean way to do this server-side without a full redirect,
+                      // so we pass a callback that uses client-side navigation.
+                      // For this case, a simple router.refresh() in the form is enough.
                     }}/>
                 </CardContent>
             </Card>
