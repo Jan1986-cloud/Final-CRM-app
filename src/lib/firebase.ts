@@ -23,6 +23,7 @@ function getProjectIdFromServiceAccount(email: string | undefined): string | und
 }
 
 let adminDb: admin.firestore.Firestore;
+let isAdminSdkInitialized = false;
 
 // Initialize Firebase Admin SDK (for server-side code)
 // This is wrapped in a try/catch to prevent crashing during build/dev if env vars are not set.
@@ -41,13 +42,17 @@ try {
               credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
             });
             console.log("Firebase Admin SDK initialized.");
+            isAdminSdkInitialized = true;
         } else {
              throw new Error("Missing Firebase Admin credentials.");
         }
+    } else {
+        isAdminSdkInitialized = true;
     }
     adminDb = admin.firestore();
 
 } catch (error) {
+    isAdminSdkInitialized = false;
     console.warn("****************************************************************************************************");
     console.warn("********** FIREBASE ADMIN SDK INITIALIZATION FAILED **************************************************");
     console.warn("********** Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY ***********");
@@ -66,4 +71,4 @@ try {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
-export { adminDb, db };
+export { adminDb, db, isAdminSdkInitialized };

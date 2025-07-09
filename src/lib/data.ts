@@ -1,6 +1,6 @@
 
 import type { Client, Company, Document, Article } from './types';
-import { adminDb } from './firebase';
+import { adminDb, isAdminSdkInitialized } from './firebase';
 import type { firestore } from 'firebase-admin';
 
 // Helper to serialize Firestore data, converting Timestamps to ISO strings
@@ -24,6 +24,7 @@ function serialize<T>(doc: firestore.DocumentSnapshot): T {
 // --- Client Data ---
 
 export async function getClients(): Promise<Client[]> {
+  if (!isAdminSdkInitialized) return [];
   try {
     const snapshot = await adminDb.collection('clients').orderBy('createdAt', 'desc').get();
     if (snapshot.empty) {
@@ -37,6 +38,7 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | null> {
+  if (!isAdminSdkInitialized) return null;
   try {
     const doc = await adminDb.collection('clients').doc(id).get();
     if (!doc.exists) {
@@ -90,6 +92,7 @@ export async function getCompany(): Promise<Company> {
 // --- Document Data ---
 
 export async function getDocuments(): Promise<Document[]> {
+    if (!isAdminSdkInitialized) return [];
     try {
         const snapshot = await adminDb.collection('documenten').orderBy('document_datum', 'desc').get();
         if (snapshot.empty) return [];
@@ -114,6 +117,7 @@ export async function getDocuments(): Promise<Document[]> {
 }
 
 export async function getDocumentById(id: string): Promise<Document | null> {
+    if (!isAdminSdkInitialized) return null;
     try {
         const doc = await adminDb.collection('documenten').doc(id).get();
         if (!doc.exists) return null;
@@ -164,6 +168,7 @@ export async function createDocument(klant_id: string, document_type: Document['
 // --- Article Data ---
 
 export async function getArticles(): Promise<Article[]> {
+    if (!isAdminSdkInitialized) return [];
     try {
         const snapshot = await adminDb.collection('artikelen').orderBy('artikel_naam').get();
         if (snapshot.empty) return [];
@@ -175,6 +180,7 @@ export async function getArticles(): Promise<Article[]> {
 }
 
 export async function getArticleById(id: string): Promise<Article | null> {
+    if (!isAdminSdkInitialized) return null;
     try {
         const doc = await adminDb.collection('artikelen').doc(id).get();
         if (!doc.exists) return null;
