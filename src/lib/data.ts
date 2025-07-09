@@ -21,10 +21,30 @@ function serialize<T>(doc: firestore.DocumentSnapshot): T {
 }
 
 
+// --- MOCK DATABASE FOR LOCAL DEVELOPMENT ---
+let nextId = 100;
+const mockDb: { clients: Client[], articles: Article[], documents: Document[] } = {
+  clients: [
+    { id: 'mock_1', name: 'Globex Corporation', email: 'contact@globex.com', phone: '555-0101', address: { street: '123 Industrial Way', city: 'Springfield', state: 'IL', zip: '62701' }, status: 'Active', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(), notes: 'High-value client, potential for a large-scale project in Q3.' },
+    { id: 'mock_2', name: 'Stark Industries', email: 'pepper.potts@stark.com', phone: '555-0102', address: { street: '10880 Malibu Point', city: 'Malibu', state: 'CA', zip: '90265' }, status: 'Lead', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), notes: 'Initial contact made. Follow up scheduled for next week.' }
+  ],
+  articles: [
+    { id: 'mock_art_1', artikel_naam: 'Pro Widget', artikel_omschrijving_kort: 'The latest and greatest widget.', artikel_omschrijving_lang: 'A full description of the Pro Widget.', artikel_fotos: [], artikel_urls: [], artikel_magazijnlocatie: 'A5-3', artikel_prijs_excl_btw: 199.99, artikel_korting_percentage: 0, artikel_btw_percentage: 21, artikel_eenheid: 'piece' },
+    { id: 'mock_art_2', artikel_naam: 'Basic Gadget', artikel_omschrijving_kort: 'A reliable, everyday gadget.', artikel_omschrijving_lang: 'A full description of the Basic Gadget.', artikel_fotos: [], artikel_urls: [], artikel_magazijnlocatie: 'B2-1', artikel_prijs_excl_btw: 49.95, artikel_korting_percentage: 5, artikel_btw_percentage: 21, artikel_eenheid: 'piece' }
+  ],
+  documents: [],
+};
+const getNextId = () => `mock_${++nextId}`;
+// --- END MOCK DATABASE ---
+
+
 // --- Client Data ---
 
 export async function getClients(): Promise<Client[]> {
-  if (!isAdminSdkInitialized) return [];
+  if (!isAdminSdkInitialized) {
+    console.warn("Firebase not configured. Using mock data for clients.");
+    return JSON.parse(JSON.stringify(mockDb.clients)).sort((a: Client, b: Client) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
   try {
     const snapshot = await adminDb.collection('clients').orderBy('createdAt', 'desc').get();
     if (snapshot.empty) {
@@ -38,7 +58,11 @@ export async function getClients(): Promise<Client[]> {
 }
 
 export async function getClientById(id: string): Promise<Client | null> {
-  if (!isAdminSdkInitialized) return null;
+  if (!isAdminSdkInitialized) {
+    console.warn(`Firebase not configured. Using mock data for getClientById(${id}).`);
+    const client = mockDb.clients.find(c => c.id === id);
+    return client ? JSON.parse(JSON.stringify(client)) : null;
+  }
   try {
     const doc = await adminDb.collection('clients').doc(id).get();
     if (!doc.exists) {
@@ -53,7 +77,14 @@ export async function getClientById(id: string): Promise<Client | null> {
 
 export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): Promise<Client> {
     if (!isAdminSdkInitialized) {
-        throw new Error("Firebase Admin SDK is not configured. Cannot create client.");
+        console.warn("Firebase not configured. Using mock data for addClient.");
+        const newClient: Client = {
+            id: getNextId(),
+            ...clientData,
+            createdAt: new Date().toISOString(),
+        };
+        mockDb.clients.push(newClient);
+        return JSON.parse(JSON.stringify(newClient));
     }
     const clientPayload = {
         ...clientData,
@@ -65,7 +96,11 @@ export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): P
 
 export async function updateClient(id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt'>>): Promise<Client> {
     if (!isAdminSdkInitialized) {
-        throw new Error("Firebase Admin SDK is not configured. Cannot update client.");
+        console.warn(`Firebase not configured. Using mock data for updateClient(${id}).`);
+        const clientIndex = mockDb.clients.findIndex(c => c.id === id);
+        if (clientIndex === -1) throw new Error("Mock client not found");
+        mockDb.clients[clientIndex] = { ...mockDb.clients[clientIndex], ...clientData };
+        return JSON.parse(JSON.stringify(mockDb.clients[clientIndex]));
     }
     const docRef = adminDb.collection('clients').doc(id);
     await docRef.update(clientData);
@@ -75,10 +110,12 @@ export async function updateClient(id: string, clientData: Partial<Omit<Client, 
 
 export async function deleteClient(id: string): Promise<void> {
     if (!isAdminSdkInitialized) {
-        throw new Error("Firebase Admin SDK is not configured. Cannot delete client.");
+        console.warn(`Firebase not configured. Using mock data for deleteClient(${id}).`);
+        const initialLength = mockDb.clients.length;
+        mockDb.clients = mockDb.clients.filter(c => c.id !== id);
+        if (mockDb.clients.length === initialLength) throw new Error("Mock client not found for deletion");
+        return;
     }
-    // In a real app, you might want to also delete related documents, or handle this differently.
-    // For now, we just delete the client.
     await adminDb.collection('clients').doc(id).delete();
 }
 
@@ -101,14 +138,20 @@ export async function getCompany(): Promise<Company> {
 // --- Document Data ---
 
 export async function getDocuments(): Promise<Document[]> {
-    if (!isAdminSdkInitialized) return [];
+    if (!isAdminSdkInitialized) {
+        console.warn("Firebase not configured. Using mock data for documents.");
+        const docs = mockDb.documents.map(doc => ({
+            ...doc,
+            clientName: mockDb.clients.find(c => c.id === doc.klant_id)?.name || 'Unknown Client'
+        }));
+        return JSON.parse(JSON.stringify(docs)).sort((a: Document, b: Document) => new Date(b.document_datum).getTime() - new Date(a.document_datum).getTime());
+    }
     try {
         const snapshot = await adminDb.collection('documenten').orderBy('document_datum', 'desc').get();
         if (snapshot.empty) return [];
 
         const docs = snapshot.docs.map(doc => serialize<Document>(doc));
         
-        // Fetch client names for display
         const clientIds = [...new Set(docs.map(doc => doc.klant_id))];
         if (clientIds.length === 0) return docs;
 
@@ -126,7 +169,13 @@ export async function getDocuments(): Promise<Document[]> {
 }
 
 export async function getDocumentById(id: string): Promise<Document | null> {
-    if (!isAdminSdkInitialized) return null;
+    if (!isAdminSdkInitialized) {
+        console.warn(`Firebase not configured. Using mock data for getDocumentById(${id}).`);
+        const doc = mockDb.documents.find(d => d.id === id);
+        if (!doc) return null;
+        const clientName = mockDb.clients.find(c => c.id === doc.klant_id)?.name || 'Unknown Client';
+        return JSON.parse(JSON.stringify({ ...doc, clientName }));
+    }
     try {
         const doc = await adminDb.collection('documenten').doc(id).get();
         if (!doc.exists) return null;
@@ -139,18 +188,33 @@ export async function getDocumentById(id: string): Promise<Document | null> {
 
 export async function createDocument(klant_id: string, document_type: Document['document_type']): Promise<Document> {
     if (!isAdminSdkInitialized) {
-        throw new Error("Firebase Admin SDK is not configured. Cannot create document.");
+        console.warn("Firebase not configured. Using mock data for createDocument.");
+        const client = mockDb.clients.find(c => c.id === klant_id);
+        if (!client) throw new Error("Mock client not found");
+
+        const prefix = { 'Quote': 'Q', 'Work Order': 'WO', 'Invoice': 'I' }[document_type];
+        const docCount = mockDb.documents.filter(d => d.document_type === document_type).length;
+        
+        const newDoc: Document = {
+            id: getNextId(),
+            document_type: document_type,
+            document_nummer: `${prefix}-${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2, '0')}-${(docCount + 1).toString().padStart(3,'0')}`,
+            document_datum: new Date().toISOString(),
+            document_status: 'concept',
+            klant_id: klant_id,
+            regels: [],
+            totaal_subtotaal_excl_btw: 0,
+            totaal_btw_bedrag: 0,
+            totaal_incl_btw: 0,
+            clientName: client.name,
+        };
+        mockDb.documents.push(newDoc);
+        return JSON.parse(JSON.stringify(newDoc));
     }
     const client = await getClientById(klant_id);
     if (!client) throw new Error("Client not found");
 
-    const prefix = {
-        'Quote': 'Q',
-        'Work Order': 'WO',
-        'Invoice': 'I'
-    }[document_type];
-    
-    // This is a simplified numbering. A robust solution would use a transaction or a dedicated counter document.
+    const prefix = { 'Quote': 'Q', 'Work Order': 'WO', 'Invoice': 'I' }[document_type];
     const docQuery = await adminDb.collection('documenten').where('document_type', '==', document_type).get();
     const docCount = docQuery.size;
     
@@ -180,7 +244,10 @@ export async function createDocument(klant_id: string, document_type: Document['
 // --- Article Data ---
 
 export async function getArticles(): Promise<Article[]> {
-    if (!isAdminSdkInitialized) return [];
+    if (!isAdminSdkInitialized) {
+        console.warn("Firebase not configured. Using mock data for articles.");
+        return JSON.parse(JSON.stringify(mockDb.articles)).sort((a: Article, b: Article) => a.artikel_naam.localeCompare(b.artikel_naam));
+    }
     try {
         const snapshot = await adminDb.collection('artikelen').orderBy('artikel_naam').get();
         if (snapshot.empty) return [];
@@ -192,7 +259,11 @@ export async function getArticles(): Promise<Article[]> {
 }
 
 export async function getArticleById(id: string): Promise<Article | null> {
-    if (!isAdminSdkInitialized) return null;
+    if (!isAdminSdkInitialized) {
+        console.warn(`Firebase not configured. Using mock data for getArticleById(${id}).`);
+        const article = mockDb.articles.find(a => a.id === id);
+        return article ? JSON.parse(JSON.stringify(article)) : null;
+    }
     try {
         const doc = await adminDb.collection('artikelen').doc(id).get();
         if (!doc.exists) return null;
@@ -205,7 +276,10 @@ export async function getArticleById(id: string): Promise<Article | null> {
 
 export async function addArticle(articleData: Omit<Article, 'id'>): Promise<Article> {
     if (!isAdminSdkInitialized) {
-        throw new Error("Firebase Admin SDK is not configured. Cannot create article.");
+        console.warn("Firebase not configured. Using mock data for addArticle.");
+        const newArticle: Article = { id: getNextId(), ...articleData };
+        mockDb.articles.push(newArticle);
+        return JSON.parse(JSON.stringify(newArticle));
     }
     const docRef = await adminDb.collection('artikelen').add(articleData);
     return { id: docRef.id, ...articleData };
@@ -213,7 +287,11 @@ export async function addArticle(articleData: Omit<Article, 'id'>): Promise<Arti
 
 export async function updateArticle(id: string, articleData: Partial<Omit<Article, 'id'>>): Promise<Article> {
     if (!isAdminSdkInitialized) {
-        throw new Error("Firebase Admin SDK is not configured. Cannot update article.");
+        console.warn(`Firebase not configured. Using mock data for updateArticle(${id}).`);
+        const articleIndex = mockDb.articles.findIndex(a => a.id === id);
+        if (articleIndex === -1) throw new Error("Mock article not found");
+        mockDb.articles[articleIndex] = { ...mockDb.articles[articleIndex], ...articleData };
+        return JSON.parse(JSON.stringify(mockDb.articles[articleIndex]));
     }
     const docRef = adminDb.collection('artikelen').doc(id);
     await docRef.update(articleData);
@@ -223,7 +301,11 @@ export async function updateArticle(id: string, articleData: Partial<Omit<Articl
 
 export async function deleteArticle(id: string): Promise<void> {
     if (!isAdminSdkInitialized) {
-        throw new Error("Firebase Admin SDK is not configured. Cannot delete article.");
+        console.warn(`Firebase not configured. Using mock data for deleteArticle(${id}).`);
+        const initialLength = mockDb.articles.length;
+        mockDb.articles = mockDb.articles.filter(a => a.id !== id);
+        if (mockDb.articles.length === initialLength) throw new Error("Mock article not found for deletion");
+        return;
     }
     await adminDb.collection('artikelen').doc(id).delete();
 }
