@@ -70,7 +70,7 @@ export default async function DocumentDetailPage({
                 <p className="text-muted-foreground mt-1">
                     Get started by adding the first line item to this document.
                 </p>
-                <Button className="mt-4">Add Line Item</Button>
+                <Button className="mt-4" disabled>Add Line Item</Button>
             </div>
 
             <Separator className="my-6" />
@@ -94,8 +94,8 @@ export default async function DocumentDetailPage({
           </CardContent>
           <CardFooter className="border-t pt-6">
             <div className="flex w-full justify-end gap-2">
-                <Button variant="outline">Download PDF</Button>
-                <Button>Send Document</Button>
+                <Button variant="outline" disabled>Download PDF</Button>
+                <Button disabled>Send Document</Button>
             </div>
           </CardFooter>
         </Card>
