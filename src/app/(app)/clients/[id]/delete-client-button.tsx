@@ -42,7 +42,7 @@ export function DeleteClientButton({ clientId, clientName }: { clientId: string;
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Failed to delete client. Please try again.',
+          description: (error as Error).message || 'Failed to delete client. Please try again.',
         });
         setIsOpen(false);
       }

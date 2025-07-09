@@ -97,7 +97,7 @@ export function ArticleForm({ article, onFinished }: ArticleFormProps) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to save article. Please try again.",
+          description: (error as Error).message || "Failed to save article. Please try again.",
         });
       }
     });

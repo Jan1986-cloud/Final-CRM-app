@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Client } from "@/lib/types";
@@ -81,7 +82,7 @@ export function ClientForm({ client, onFinished }: ClientFormProps) {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to save client. Please try again.",
+          description: (error as Error).message || "Failed to save client. Please try again.",
         });
       }
     });

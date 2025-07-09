@@ -42,7 +42,7 @@ export function DeleteArticleButton({ articleId, articleName }: { articleId: str
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Failed to delete the article. Please try again.',
+          description: (error as Error).message || 'Failed to delete the article. Please try again.',
         });
         setIsOpen(false);
       }
