@@ -14,57 +14,43 @@ const firebaseConfig: FirebaseOptions = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-function getProjectIdFromServiceAccount(email: string | undefined): string | undefined {
-    if (!email) {
-        return undefined;
-    }
-    const match = email.match(/@(.+?)\.iam\.gserviceaccount\.com$/);
-    return match?.[1];
-}
-
 let adminDb: admin.firestore.Firestore;
 let isAdminSdkInitialized = false;
 
-// Initialize Firebase Admin SDK (for server-side code)
-// This is wrapped in a try/catch to prevent crashing during build/dev if env vars are not set.
-try {
-    const serviceAccount = {
-      project_id: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || getProjectIdFromServiceAccount(process.env.FIREBASE_CLIENT_EMAIL),
-      client_email: process.env.FIREBASE_CLIENT_EMAIL,
-      private_key: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-    };
-    
-    const hasCredentials = serviceAccount.project_id && serviceAccount.client_email && serviceAccount.private_key && serviceAccount.private_key !== '\n';
+// Prepare service account credentials from environment variables
+const serviceAccount = {
+  projectId: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+};
 
-    if (admin.apps.length === 0) {
-        if (hasCredentials) {
-            admin.initializeApp({
-              credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-            });
-            console.log("Firebase Admin SDK initialized.");
-            isAdminSdkInitialized = true;
-        } else {
-             throw new Error("Missing Firebase Admin credentials.");
-        }
-    } else {
-        isAdminSdkInitialized = true;
+// Check if all necessary admin credentials are provided
+if (serviceAccount.projectId && serviceAccount.clientEmail && serviceAccount.privateKey) {
+  try {
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        // The cert object requires snake_case keys
+        credential: admin.credential.cert({
+          project_id: serviceAccount.projectId,
+          client_email: serviceAccount.clientEmail,
+          private_key: serviceAccount.privateKey,
+        }),
+      });
+      console.log("Firebase Admin SDK initialized successfully.");
     }
     adminDb = admin.firestore();
-
-} catch (error) {
+    isAdminSdkInitialized = true;
+  } catch (error: any) {
+    console.error("!!! Firebase Admin SDK initialization failed:", error.message);
     isAdminSdkInitialized = false;
-    console.warn("****************************************************************************************************");
-    console.warn("********** FIREBASE ADMIN SDK INITIALIZATION FAILED **************************************************");
-    console.warn("********** Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY ***********");
-    console.warn("********** in a .env file. Any server-side data fetching will fail. ********************************");
-    console.warn("****************************************************************************************************");
-
-    adminDb = new Proxy({}, {
-        get(target, prop) {
-            const err = `Firebase Admin SDK not initialized. Cannot access 'adminDb.${String(prop)}'. Please check your server logs for configuration instructions.`;
-            throw new Error(err);
-        }
-    }) as admin.firestore.Firestore;
+  }
+} else {
+  console.warn("**********************************************************************");
+  console.warn("*** Firebase Admin credentials not set in environment. ***************");
+  console.warn("*** Server-side database operations will be disabled. ****************");
+  console.warn("*** Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and *******");
+  console.warn("*** FIREBASE_PRIVATE_KEY in your .env file. **************************");
+  console.warn("**********************************************************************");
 }
 
 // Initialize Firebase Client SDK (for client-side code)

@@ -52,6 +52,9 @@ export async function getClientById(id: string): Promise<Client | null> {
 }
 
 export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): Promise<Client> {
+    if (!isAdminSdkInitialized) {
+        throw new Error("Firebase Admin SDK is not configured. Cannot create client.");
+    }
     const clientPayload = {
         ...clientData,
         createdAt: new Date(),
@@ -61,6 +64,9 @@ export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): P
 }
 
 export async function updateClient(id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt'>>): Promise<Client> {
+    if (!isAdminSdkInitialized) {
+        throw new Error("Firebase Admin SDK is not configured. Cannot update client.");
+    }
     const docRef = adminDb.collection('clients').doc(id);
     await docRef.update(clientData);
     const updatedDoc = await docRef.get();
@@ -68,6 +74,9 @@ export async function updateClient(id: string, clientData: Partial<Omit<Client, 
 }
 
 export async function deleteClient(id: string): Promise<void> {
+    if (!isAdminSdkInitialized) {
+        throw new Error("Firebase Admin SDK is not configured. Cannot delete client.");
+    }
     // In a real app, you might want to also delete related documents, or handle this differently.
     // For now, we just delete the client.
     await adminDb.collection('clients').doc(id).delete();
@@ -129,6 +138,9 @@ export async function getDocumentById(id: string): Promise<Document | null> {
 }
 
 export async function createDocument(klant_id: string, document_type: Document['document_type']): Promise<Document> {
+    if (!isAdminSdkInitialized) {
+        throw new Error("Firebase Admin SDK is not configured. Cannot create document.");
+    }
     const client = await getClientById(klant_id);
     if (!client) throw new Error("Client not found");
 
@@ -192,11 +204,17 @@ export async function getArticleById(id: string): Promise<Article | null> {
 }
 
 export async function addArticle(articleData: Omit<Article, 'id'>): Promise<Article> {
+    if (!isAdminSdkInitialized) {
+        throw new Error("Firebase Admin SDK is not configured. Cannot create article.");
+    }
     const docRef = await adminDb.collection('artikelen').add(articleData);
     return { id: docRef.id, ...articleData };
 }
 
 export async function updateArticle(id: string, articleData: Partial<Omit<Article, 'id'>>): Promise<Article> {
+    if (!isAdminSdkInitialized) {
+        throw new Error("Firebase Admin SDK is not configured. Cannot update article.");
+    }
     const docRef = adminDb.collection('artikelen').doc(id);
     await docRef.update(articleData);
     const updatedDoc = await docRef.get();
@@ -204,5 +222,8 @@ export async function updateArticle(id: string, articleData: Partial<Omit<Articl
 }
 
 export async function deleteArticle(id: string): Promise<void> {
+    if (!isAdminSdkInitialized) {
+        throw new Error("Firebase Admin SDK is not configured. Cannot delete article.");
+    }
     await adminDb.collection('artikelen').doc(id).delete();
 }
