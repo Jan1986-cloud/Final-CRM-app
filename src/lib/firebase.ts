@@ -18,22 +18,18 @@ const firebaseConfig: FirebaseOptions = {
 // This is used for server-side operations.
 // Store these values securely in your environment variables.
 const serviceAccount = {
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  project_id: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  client_email: process.env.FIREBASE_CLIENT_EMAIL,
   // The private key needs to have newline characters correctly formatted.
-  privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+  private_key: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
 };
 
 // Initialize Firebase Admin SDK (for server-side code)
 if (!admin.apps.length) {
-  try {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
     console.log("Firebase Admin SDK initialized.");
-  } catch (error: any) {
-    console.error("Firebase Admin SDK initialization error: ", error.stack);
-  }
 }
 
 export const adminDb = admin.firestore();
