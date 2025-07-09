@@ -20,6 +20,21 @@ function serialize<T>(doc: firestore.DocumentSnapshot): T {
     return { id: doc.id, ...serializeObject(data) } as T;
 }
 
+let hasLoggedDatastoreError = false;
+const logDatastoreModeError = () => {
+    if (hasLoggedDatastoreError) return;
+    console.error("********************************************************************************************************");
+    console.error("*** PROJECT CONFIGURATION ERROR: Firestore is in Datastore Mode. *************************************");
+    console.error("*** This application requires Firestore in Native Mode. You must create a new project. ***************");
+    console.error("*** Falling back to OFFLINE MODE. Data is not being saved. *******************************************");
+    console.error("********************************************************************************************************");
+    hasLoggedDatastoreError = true;
+};
+
+const isDatastoreModeError = (error: any): boolean => {
+    return !!error.message?.includes('Firestore in Datastore Mode');
+}
+
 
 // --- MOCK DATABASE FOR LOCAL DEVELOPMENT ---
 let nextId = 100;
@@ -51,7 +66,11 @@ export async function getClients(): Promise<Client[]> {
       return [];
     }
     return snapshot.docs.map(doc => serialize<Client>(doc));
-  } catch (error) {
+  } catch (error: any) {
+    if (isDatastoreModeError(error)) {
+        logDatastoreModeError();
+        return JSON.parse(JSON.stringify(mockDb.clients)).sort((a: Client, b: Client) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
     console.error("Error fetching clients:", error);
     return [];
   }
@@ -69,7 +88,12 @@ export async function getClientById(id: string): Promise<Client | null> {
       return null;
     }
     return serialize<Client>(doc);
-  } catch (error) {
+  } catch (error: any) {
+    if (isDatastoreModeError(error)) {
+        logDatastoreModeError();
+        const client = mockDb.clients.find(c => c.id === id);
+        return client ? JSON.parse(JSON.stringify(client)) : null;
+    }
     console.error(`Error fetching client ${id}:`, error);
     return null;
   }
@@ -162,7 +186,15 @@ export async function getDocuments(): Promise<Document[]> {
             ...doc,
             clientName: clientMap.get(doc.klant_id) || 'Unknown Client'
         }));
-    } catch (error) {
+    } catch (error: any) {
+        if (isDatastoreModeError(error)) {
+            logDatastoreModeError();
+            const docs = mockDb.documents.map(doc => ({
+                ...doc,
+                clientName: mockDb.clients.find(c => c.id === doc.klant_id)?.name || 'Unknown Client'
+            }));
+            return JSON.parse(JSON.stringify(docs)).sort((a: Document, b: Document) => new Date(b.document_datum).getTime() - new Date(a.document_datum).getTime());
+        }
         console.error("Error fetching documents:", error);
         return [];
     }
@@ -180,7 +212,14 @@ export async function getDocumentById(id: string): Promise<Document | null> {
         const doc = await adminDb.collection('documenten').doc(id).get();
         if (!doc.exists) return null;
         return serialize<Document>(doc);
-    } catch (error) {
+    } catch (error: any) {
+        if (isDatastoreModeError(error)) {
+            logDatastoreModeError();
+            const doc = mockDb.documents.find(d => d.id === id);
+            if (!doc) return null;
+            const clientName = mockDb.clients.find(c => c.id === doc.klant_id)?.name || 'Unknown Client';
+            return JSON.parse(JSON.stringify({ ...doc, clientName }));
+        }
         console.error(`Error fetching document ${id}:`, error);
         return null;
     }
@@ -252,7 +291,11 @@ export async function getArticles(): Promise<Article[]> {
         const snapshot = await adminDb.collection('artikelen').orderBy('artikel_naam').get();
         if (snapshot.empty) return [];
         return snapshot.docs.map(doc => serialize<Article>(doc));
-    } catch (error) {
+    } catch (error: any) {
+        if (isDatastoreModeError(error)) {
+            logDatastoreModeError();
+            return JSON.parse(JSON.stringify(mockDb.articles)).sort((a: Article, b: Article) => a.artikel_naam.localeCompare(b.artikel_naam));
+        }
         console.error("Error fetching articles:", error);
         return [];
     }
@@ -268,7 +311,12 @@ export async function getArticleById(id: string): Promise<Article | null> {
         const doc = await adminDb.collection('artikelen').doc(id).get();
         if (!doc.exists) return null;
         return serialize<Article>(doc);
-    } catch (error) {
+    } catch (error: any) {
+        if (isDatastoreModeError(error)) {
+            logDatastoreModeError();
+            const article = mockDb.articles.find(a => a.id === id);
+            return article ? JSON.parse(JSON.stringify(article)) : null;
+        }
         console.error(`Error fetching article ${id}:`, error);
         return null;
     }
