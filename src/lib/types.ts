@@ -1,3 +1,4 @@
+
 export type Client = {
   id: string;
   name: string;
@@ -26,7 +27,7 @@ export type Company = {
 export type Document = {
   id: string;
   klant_id: string;
-  clientName: string; // For display convenience
+  clientName: string; // For display convenience, joined from clients collection
   document_type: 'Quote' | 'Work Order' | 'Invoice';
   document_nummer: string;
   document_datum: string; // ISO string

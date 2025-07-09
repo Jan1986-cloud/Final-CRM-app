@@ -1,3 +1,4 @@
+
 import { getClientById } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
@@ -14,7 +15,8 @@ import { Mail, Phone, MapPin, Edit, Calendar, Info } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ClientForm } from "../client-form";
-import { redirect } from 'next/navigation'
+import { DeleteClientButton } from "./delete-client-button";
+
 
 export default async function ClientDetailPage({
   params,
@@ -45,13 +47,7 @@ export default async function ClientDetailPage({
                     <CardDescription>Update the details for this client.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ClientForm client={client} onFinished={() => {
-                      // After saving, redirect to the detail view.
-                      // The form now handles revalidation. We will just navigate away from edit mode.
-                      // Next doesn't have a clean way to do this server-side without a full redirect,
-                      // so we pass a callback that uses client-side navigation.
-                      // For this case, a simple router.refresh() in the form is enough.
-                    }}/>
+                    <ClientForm client={client} />
                 </CardContent>
             </Card>
           </main>
@@ -62,12 +58,15 @@ export default async function ClientDetailPage({
   return (
     <div className="flex h-full flex-col">
       <PageHeader title={client.name}>
-        <Button asChild>
-          <Link href={`/clients/${client.id}?edit=true`}>
-            <Edit />
-            Edit Client
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <DeleteClientButton clientId={client.id} clientName={client.name} />
+            <Button asChild>
+            <Link href={`/clients/${client.id}?edit=true`}>
+                <Edit />
+                Edit Client
+            </Link>
+            </Button>
+        </div>
       </PageHeader>
       <main className="flex-1 overflow-auto p-4 md:p-6">
         <div className="grid gap-6 lg:grid-cols-3">

@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addClient, updateClient, createDocument as createDocumentData, addArticle, updateArticle } from './data';
+import { addClient, updateClient, createDocument as createDocumentData, addArticle, updateArticle, deleteClient, deleteArticle } from './data';
 import type { Client, Document, Article } from './types';
 import * as z from 'zod';
 import { redirect } from 'next/navigation';
@@ -48,6 +48,17 @@ export async function saveClientAction(data: z.infer<typeof clientSchema> & { id
     return savedClient;
 }
 
+export async function deleteClientAction(id: string) {
+    if (!id) {
+        throw new Error("Client ID is required");
+    }
+    await deleteClient(id);
+    revalidatePath('/clients');
+    revalidatePath('/documents');
+    // The redirect will be handled on the client-side after the action completes
+}
+
+
 export async function createDocumentAction(data: { klant_id: string; document_type: Document['document_type']; }) {
     if (!data.klant_id || !data.document_type) {
         throw new Error("Client and document type are required");
@@ -60,31 +71,41 @@ export async function createDocumentAction(data: { klant_id: string; document_ty
 }
 
 const articleSchema = z.object({
+    id: z.string().optional(),
     artikel_naam: z.string().min(2, "Name must be at least 2 characters."),
     artikel_omschrijving_kort: z.string().min(5, "Short description is required."),
     artikel_omschrijving_lang: z.string().optional(),
     artikel_fotos: z.array(z.object({
-        foto_url: z.string().url("Invalid URL format."),
-        foto_omschrijving: z.string().min(3, "Photo description is required."),
+        foto_url: z.string().url("Invalid URL format.").or(z.literal('')),
+        foto_omschrijving: z.string(),
     })).optional(),
     artikel_urls: z.array(z.object({
-        value: z.string().url("Invalid URL format.")
+        value: z.string().url("Invalid URL format.").or(z.literal(''))
     })).optional(),
     artikel_magazijnlocatie: z.string().optional(),
     artikel_prijs_excl_btw: z.coerce.number().min(0, "Price must be a positive number."),
-    artikel_korting_percentage: z.coerce.number().min(0).max(100).optional(),
-    artikel_btw_percentage: z.coerce.number().min(0).max(100),
+    artikel_korting_percentage: z.coerce.number().min(0).max(100).optional().default(0),
+    artikel_btw_percentage: z.coerce.number().min(0),
     artikel_eenheid: z.string().min(1, "Unit is required."),
 });
 
 export async function saveArticleAction(data: z.infer<typeof articleSchema> & { id?: string }) {
-    // Transform urls from {value: string}[] to string[]
     const transformedData = {
         ...data,
-        artikel_urls: data.artikel_urls?.map(u => u.value) || [],
+        artikel_urls: data.artikel_urls?.map(u => u.value).filter(Boolean) || [],
+         artikel_fotos: data.artikel_fotos?.filter(f => f.foto_url) || [],
     };
+    
+    // a slightly different schema for validation after transform
+    const articleSaveSchema = articleSchema.extend({
+        artikel_urls: z.array(z.string().url()).optional(),
+        artikel_fotos: z.array(z.object({
+            foto_url: z.string().url(),
+            foto_omschrijving: z.string(),
+        })).optional(),
+    })
 
-    const validatedFields = articleSchema.safeParse(transformedData);
+    const validatedFields = articleSaveSchema.safeParse(transformedData);
 
     if (!validatedFields.success) {
         console.error(validatedFields.error.flatten().fieldErrors);
@@ -106,4 +127,13 @@ export async function saveArticleAction(data: z.infer<typeof articleSchema> & { 
     }
 
     return savedArticle;
+}
+
+export async function deleteArticleAction(id: string) {
+    if (!id) {
+        throw new Error("Article ID is required");
+    }
+    await deleteArticle(id);
+    revalidatePath('/articles');
+    // The redirect will be handled on the client-side after the action completes
 }

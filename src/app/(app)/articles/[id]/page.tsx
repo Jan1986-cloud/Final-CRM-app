@@ -16,6 +16,7 @@ import Link from "next/link";
 import { ArticleForm } from "../article-form";
 import Image from "next/image";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { DeleteArticleButton } from "./delete-article-button";
 
 export default async function ArticleDetailPage({
   params,
@@ -54,12 +55,15 @@ export default async function ArticleDetailPage({
   return (
     <div className="flex h-full flex-col">
       <PageHeader title={article.artikel_naam}>
-        <Button asChild>
-          <Link href={`/articles/${article.id}?edit=true`}>
-            <Edit />
-            Edit Article
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <DeleteArticleButton articleId={article.id} articleName={article.artikel_naam} />
+            <Button asChild>
+            <Link href={`/articles/${article.id}?edit=true`}>
+                <Edit />
+                Edit Article
+            </Link>
+            </Button>
+        </div>
       </PageHeader>
       <main className="flex-1 overflow-auto p-4 md:p-6">
         <div className="mx-auto max-w-5xl space-y-6">
