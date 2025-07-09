@@ -9,6 +9,7 @@ import {
 import { MainNav } from "@/components/main-nav";
 import { BookUser, Cloud, CloudOff } from "lucide-react";
 import { isAdminSdkInitialized } from "@/lib/firebase";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function AppLayout({
   children,
@@ -57,6 +58,18 @@ export default function AppLayout({
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="flex flex-col">
+        {!isConnected && (
+            <div className="p-4 border-b">
+                <Alert variant="destructive">
+                    <CloudOff className="h-4 w-4" />
+                    <AlertTitle>You are in Offline Mode</AlertTitle>
+                    <AlertDescription>
+                    <p>Your changes are not being saved to the cloud. To connect your app to Firebase, please set your project credentials in the <strong>.env</strong> file.</p>
+                    <p className="text-xs mt-2">You can find these in your Firebase project settings under Service Accounts.</p>
+                    </AlertDescription>
+                </Alert>
+            </div>
+        )}
         {children}
       </SidebarInset>
     </SidebarProvider>
