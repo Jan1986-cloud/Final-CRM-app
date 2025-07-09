@@ -22,36 +22,48 @@ function getProjectIdFromServiceAccount(email: string | undefined): string | und
     return match?.[1];
 }
 
-// IMPORTANT: Set up your Firebase Admin SDK service account credentials
-// This is used for server-side operations.
-// Store these values securely in your environment variables.
-const serviceAccount = {
-  project_id: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || getProjectIdFromServiceAccount(process.env.FIREBASE_CLIENT_EMAIL),
-  client_email: process.env.FIREBASE_CLIENT_EMAIL,
-  // The private key needs to have newline characters correctly formatted.
-  private_key: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-};
+let adminDb: admin.firestore.Firestore;
 
 // Initialize Firebase Admin SDK (for server-side code)
-if (!admin.apps.length) {
-    if (!serviceAccount.project_id) {
-        throw new Error('Firebase Admin SDK Error: Could not determine "project_id". Please set FIREBASE_PROJECT_ID or ensure FIREBASE_CLIENT_EMAIL is a valid service account email.');
-    }
-    if (!serviceAccount.client_email) {
-        throw new Error('Firebase Admin SDK Error: "client_email" is not set in your environment variables. Please set FIREBASE_CLIENT_EMAIL.');
-    }
-    if (!serviceAccount.private_key || serviceAccount.private_key === '\n') {
-        throw new Error('Firebase Admin SDK Error: "private_key" is not set in your environment variables. Please set FIREBASE_PRIVATE_KEY.');
-    }
+// This is wrapped in a try/catch to prevent crashing during build/dev if env vars are not set.
+try {
+    const serviceAccount = {
+      project_id: process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || getProjectIdFromServiceAccount(process.env.FIREBASE_CLIENT_EMAIL),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      private_key: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    };
     
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    });
-    console.log("Firebase Admin SDK initialized.");
-}
+    const hasCredentials = serviceAccount.project_id && serviceAccount.client_email && serviceAccount.private_key && serviceAccount.private_key !== '\n';
 
-export const adminDb = admin.firestore();
+    if (admin.apps.length === 0) {
+        if (hasCredentials) {
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+            });
+            console.log("Firebase Admin SDK initialized.");
+        } else {
+             throw new Error("Missing Firebase Admin credentials.");
+        }
+    }
+    adminDb = admin.firestore();
+
+} catch (error) {
+    console.warn("****************************************************************************************************");
+    console.warn("********** FIREBASE ADMIN SDK INITIALIZATION FAILED **************************************************");
+    console.warn("********** Please set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY ***********");
+    console.warn("********** in a .env file. Any server-side data fetching will fail. ********************************");
+    console.warn("****************************************************************************************************");
+
+    adminDb = new Proxy({}, {
+        get(target, prop) {
+            const err = `Firebase Admin SDK not initialized. Cannot access 'adminDb.${String(prop)}'. Please check your server logs for configuration instructions.`;
+            throw new Error(err);
+        }
+    }) as admin.firestore.Firestore;
+}
 
 // Initialize Firebase Client SDK (for client-side code)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app);
+const db = getFirestore(app);
+
+export { adminDb, db };
