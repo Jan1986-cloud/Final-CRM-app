@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addClient, updateClient, createDocument as createDocumentData, addArticle, updateArticle, deleteClient, deleteArticle } from './data';
+import { addClient, updateClient, createDocument as createDocumentData, addArticle, updateArticle, deleteClient, deleteArticle, addDocumentLine, deleteDocumentLine } from './data';
 import type { Client, Document, Article } from './types';
 import * as z from 'zod';
 import { redirect } from 'next/navigation';
@@ -136,4 +136,25 @@ export async function deleteArticleAction(id: string) {
     await deleteArticle(id);
     revalidatePath('/articles');
     // The redirect will be handled on the client-side after the action completes
+}
+
+
+// --- Document Line Item Actions ---
+
+export async function addDocumentLineAction(documentId: string, articleId: string, quantity: number) {
+    if (!documentId || !articleId || !quantity) {
+        throw new Error("Document ID, Article ID, and quantity are required.");
+    }
+    
+    await addDocumentLine(documentId, articleId, quantity);
+    revalidatePath(`/documents/${documentId}`);
+}
+
+export async function deleteDocumentLineAction(documentId: string, lineId: string) {
+    if (!documentId || !lineId) {
+        throw new Error("Document ID and Line ID are required.");
+    }
+
+    await deleteDocumentLine(documentId, lineId);
+    revalidatePath(`/documents/${documentId}`);
 }

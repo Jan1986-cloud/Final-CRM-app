@@ -24,6 +24,18 @@ export type Company = {
   website: string;
 };
 
+export type DocumentLine = {
+  id: string; // A unique ID for the line item itself
+  artikel_id: string;
+  omschrijving: string;
+  aantal: number;
+  eenheid: string;
+  prijs_per_eenheid_excl_btw: number;
+  btw_percentage: number;
+  korting_percentage: number;
+  totaal_excl_btw: number;
+};
+
 export type Document = {
   id: string;
   klant_id: string;
@@ -32,7 +44,7 @@ export type Document = {
   document_nummer: string;
   document_datum: string; // ISO string
   document_status: 'concept' | 'Draft' | 'Sent' | 'Paid';
-  regels: any[];
+  regels: DocumentLine[];
   totaal_subtotaal_excl_btw: number;
   totaal_btw_bedrag: number;
   totaal_incl_btw: number;

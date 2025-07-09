@@ -1,13 +1,15 @@
 
-import type { Client, Company, Document, Article } from './types';
+import type { Client, Company, Document, Article, DocumentLine } from './types';
 import { adminDb, isAdminSdkInitialized } from './firebase';
 import type { firestore } from 'firebase-admin';
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper to serialize Firestore data, converting Timestamps to ISO strings
 function serialize<T>(doc: firestore.DocumentSnapshot): T {
     const data = doc.data() as any;
     // Recursively serialize Timestamps
     const serializeObject = (obj: any) => {
+        if (!obj) return obj;
         for (const key in obj) {
             if (obj[key] && typeof obj[key].toDate === 'function') {
                  obj[key] = obj[key].toDate().toISOString();
@@ -161,6 +163,18 @@ export async function getCompany(): Promise<Company> {
 
 // --- Document Data ---
 
+function recalculateDocumentTotals(regels: DocumentLine[]): { subtotal: number, vat: number, total: number } {
+    let subtotal = 0;
+    let vat = 0;
+
+    for (const regel of regels) {
+        subtotal += regel.totaal_excl_btw;
+        vat += regel.totaal_excl_btw * (regel.btw_percentage / 100);
+    }
+    const total = subtotal + vat;
+    return { subtotal, vat, total };
+}
+
 export async function getDocuments(): Promise<Document[]> {
     if (!isAdminSdkInitialized) {
         console.warn("Firebase not configured. Using mock data for documents.");
@@ -277,6 +291,84 @@ export async function createDocument(klant_id: string, document_type: Document['
         clientName: client.name,
         document_datum: newDocPayload.document_datum.toISOString()
     };
+}
+
+
+export async function addDocumentLine(documentId: string, articleId: string, quantity: number) {
+  const article = await getArticleById(articleId);
+  if (!article) throw new Error("Article not found.");
+
+  const lineTotalExclBtw = article.artikel_prijs_excl_btw * quantity * (1 - article.artikel_korting_percentage / 100);
+
+  const newLine: DocumentLine = {
+    id: uuidv4(),
+    artikel_id: articleId,
+    omschrijving: article.artikel_naam,
+    aantal: quantity,
+    eenheid: article.artikel_eenheid,
+    prijs_per_eenheid_excl_btw: article.artikel_prijs_excl_btw,
+    btw_percentage: article.artikel_btw_percentage,
+    korting_percentage: article.artikel_korting_percentage,
+    totaal_excl_btw: lineTotalExclBtw,
+  };
+
+  if (!isAdminSdkInitialized) {
+    const docIndex = mockDb.documents.findIndex(d => d.id === documentId);
+    if (docIndex === -1) throw new Error("Mock document not found.");
+    const doc = mockDb.documents[docIndex];
+    doc.regels.push(newLine);
+    const { subtotal, vat, total } = recalculateDocumentTotals(doc.regels);
+    doc.totaal_subtotaal_excl_btw = subtotal;
+    doc.totaal_btw_bedrag = vat;
+    doc.totaal_incl_btw = total;
+    return;
+  }
+
+  const docRef = adminDb.collection('documenten').doc(documentId);
+  const doc = await docRef.get();
+  if (!doc.exists) throw new Error("Document not found.");
+  
+  const currentRegels = doc.data()?.regels || [];
+  const updatedRegels = [...currentRegels, newLine];
+  
+  const { subtotal, vat, total } = recalculateDocumentTotals(updatedRegels);
+  
+  await docRef.update({
+    regels: updatedRegels,
+    totaal_subtotaal_excl_btw: subtotal,
+    totaal_btw_bedrag: vat,
+    totaal_incl_btw: total,
+  });
+}
+
+export async function deleteDocumentLine(documentId: string, lineId: string) {
+    if (!isAdminSdkInitialized) {
+        const docIndex = mockDb.documents.findIndex(d => d.id === documentId);
+        if (docIndex === -1) throw new Error("Mock document not found.");
+        const doc = mockDb.documents[docIndex];
+        doc.regels = doc.regels.filter(r => r.id !== lineId);
+        const { subtotal, vat, total } = recalculateDocumentTotals(doc.regels);
+        doc.totaal_subtotaal_excl_btw = subtotal;
+        doc.totaal_btw_bedrag = vat;
+        doc.totaal_incl_btw = total;
+        return;
+    }
+
+    const docRef = adminDb.collection('documenten').doc(documentId);
+    const doc = await docRef.get();
+    if (!doc.exists) throw new Error("Document not found.");
+
+    const currentRegels = doc.data()?.regels || [];
+    const updatedRegels = currentRegels.filter((r: DocumentLine) => r.id !== lineId);
+
+    const { subtotal, vat, total } = recalculateDocumentTotals(updatedRegels);
+
+    await docRef.update({
+        regels: updatedRegels,
+        totaal_subtotaal_excl_btw: subtotal,
+        totaal_btw_bedrag: vat,
+        totaal_incl_btw: total,
+    });
 }
 
 
