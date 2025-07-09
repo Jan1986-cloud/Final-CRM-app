@@ -1,11 +1,12 @@
 
 import type { Client, Company, Document, Article, DocumentLine } from './types';
 import { adminDb, isAdminSdkInitialized } from './firebase';
-import type { firestore } from 'firebase-admin';
+import { firestore } from 'firebase-admin';
+import type { firestore as firestore_type } from 'firebase-admin';
 import { v4 as uuidv4 } from 'uuid';
 
 // Helper to serialize Firestore data, converting Timestamps to ISO strings
-function serialize<T>(doc: firestore.DocumentSnapshot): T {
+function serialize<T>(doc: firestore_type.DocumentSnapshot): T {
     const data = doc.data() as any;
     // Recursively serialize Timestamps
     const serializeObject = (obj: any) => {
@@ -103,14 +104,7 @@ export async function getClientById(id: string): Promise<Client | null> {
 
 export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): Promise<Client> {
     if (!isAdminSdkInitialized) {
-        console.warn("Firebase not configured. Using mock data for addClient.");
-        const newClient: Client = {
-            id: getNextId(),
-            ...clientData,
-            createdAt: new Date().toISOString(),
-        };
-        mockDb.clients.push(newClient);
-        return JSON.parse(JSON.stringify(newClient));
+        throw new Error("Firebase not configured. Cannot add client in offline mode.");
     }
     const clientPayload = {
         ...clientData,
@@ -122,11 +116,7 @@ export async function addClient(clientData: Omit<Client, 'id' | 'createdAt'>): P
 
 export async function updateClient(id: string, clientData: Partial<Omit<Client, 'id' | 'createdAt'>>): Promise<Client> {
     if (!isAdminSdkInitialized) {
-        console.warn(`Firebase not configured. Using mock data for updateClient(${id}).`);
-        const clientIndex = mockDb.clients.findIndex(c => c.id === id);
-        if (clientIndex === -1) throw new Error("Mock client not found");
-        mockDb.clients[clientIndex] = { ...mockDb.clients[clientIndex], ...clientData };
-        return JSON.parse(JSON.stringify(mockDb.clients[clientIndex]));
+        throw new Error("Firebase not configured. Cannot update client in offline mode.");
     }
     const docRef = adminDb.collection('clients').doc(id);
     await docRef.update(clientData);
@@ -136,11 +126,7 @@ export async function updateClient(id: string, clientData: Partial<Omit<Client, 
 
 export async function deleteClient(id: string): Promise<void> {
     if (!isAdminSdkInitialized) {
-        console.warn(`Firebase not configured. Using mock data for deleteClient(${id}).`);
-        const initialLength = mockDb.clients.length;
-        mockDb.clients = mockDb.clients.filter(c => c.id !== id);
-        if (mockDb.clients.length === initialLength) throw new Error("Mock client not found for deletion");
-        return;
+        throw new Error("Firebase not configured. Cannot delete client in offline mode.");
     }
     await adminDb.collection('clients').doc(id).delete();
 }
@@ -193,7 +179,7 @@ export async function getDocuments(): Promise<Document[]> {
         const clientIds = [...new Set(docs.map(doc => doc.klant_id))];
         if (clientIds.length === 0) return docs;
 
-        const clientSnapshot = await adminDb.collection('clients').where(adminDb.FieldPath.documentId(), 'in', clientIds).get();
+        const clientSnapshot = await adminDb.collection('clients').where(firestore.FieldPath.documentId(), 'in', clientIds).get();
         const clientMap = new Map(clientSnapshot.docs.map(doc => [doc.id, doc.data().name]));
 
         return docs.map(doc => ({
@@ -241,28 +227,7 @@ export async function getDocumentById(id: string): Promise<Document | null> {
 
 export async function createDocument(klant_id: string, document_type: Document['document_type']): Promise<Document> {
     if (!isAdminSdkInitialized) {
-        console.warn("Firebase not configured. Using mock data for createDocument.");
-        const client = mockDb.clients.find(c => c.id === klant_id);
-        if (!client) throw new Error("Mock client not found");
-
-        const prefix = { 'Quote': 'Q', 'Work Order': 'WO', 'Invoice': 'I' }[document_type];
-        const docCount = mockDb.documents.filter(d => d.document_type === document_type).length;
-        
-        const newDoc: Document = {
-            id: getNextId(),
-            document_type: document_type,
-            document_nummer: `${prefix}-${new Date().getFullYear()}${(new Date().getMonth()+1).toString().padStart(2, '0')}-${(docCount + 1).toString().padStart(3,'0')}`,
-            document_datum: new Date().toISOString(),
-            document_status: 'concept',
-            klant_id: klant_id,
-            regels: [],
-            totaal_subtotaal_excl_btw: 0,
-            totaal_btw_bedrag: 0,
-            totaal_incl_btw: 0,
-            clientName: client.name,
-        };
-        mockDb.documents.push(newDoc);
-        return JSON.parse(JSON.stringify(newDoc));
+        throw new Error("Firebase not configured. Cannot create document in offline mode.");
     }
     const client = await getClientById(klant_id);
     if (!client) throw new Error("Client not found");
@@ -295,6 +260,9 @@ export async function createDocument(klant_id: string, document_type: Document['
 
 
 export async function addDocumentLine(documentId: string, articleId: string, quantity: number) {
+  if (!isAdminSdkInitialized) {
+    throw new Error("Firebase not configured. Cannot add document line in offline mode.");
+  }
   const article = await getArticleById(articleId);
   if (!article) throw new Error("Article not found.");
 
@@ -312,18 +280,7 @@ export async function addDocumentLine(documentId: string, articleId: string, qua
     totaal_excl_btw: lineTotalExclBtw,
   };
 
-  if (!isAdminSdkInitialized) {
-    const docIndex = mockDb.documents.findIndex(d => d.id === documentId);
-    if (docIndex === -1) throw new Error("Mock document not found.");
-    const doc = mockDb.documents[docIndex];
-    doc.regels.push(newLine);
-    const { subtotal, vat, total } = recalculateDocumentTotals(doc.regels);
-    doc.totaal_subtotaal_excl_btw = subtotal;
-    doc.totaal_btw_bedrag = vat;
-    doc.totaal_incl_btw = total;
-    return;
-  }
-
+  
   const docRef = adminDb.collection('documenten').doc(documentId);
   const doc = await docRef.get();
   if (!doc.exists) throw new Error("Document not found.");
@@ -343,15 +300,7 @@ export async function addDocumentLine(documentId: string, articleId: string, qua
 
 export async function deleteDocumentLine(documentId: string, lineId: string) {
     if (!isAdminSdkInitialized) {
-        const docIndex = mockDb.documents.findIndex(d => d.id === documentId);
-        if (docIndex === -1) throw new Error("Mock document not found.");
-        const doc = mockDb.documents[docIndex];
-        doc.regels = doc.regels.filter(r => r.id !== lineId);
-        const { subtotal, vat, total } = recalculateDocumentTotals(doc.regels);
-        doc.totaal_subtotaal_excl_btw = subtotal;
-        doc.totaal_btw_bedrag = vat;
-        doc.totaal_incl_btw = total;
-        return;
+      throw new Error("Firebase not configured. Cannot delete document line in offline mode.");
     }
 
     const docRef = adminDb.collection('documenten').doc(documentId);
@@ -416,10 +365,7 @@ export async function getArticleById(id: string): Promise<Article | null> {
 
 export async function addArticle(articleData: Omit<Article, 'id'>): Promise<Article> {
     if (!isAdminSdkInitialized) {
-        console.warn("Firebase not configured. Using mock data for addArticle.");
-        const newArticle: Article = { id: getNextId(), ...articleData };
-        mockDb.articles.push(newArticle);
-        return JSON.parse(JSON.stringify(newArticle));
+        throw new Error("Firebase not configured. Cannot add article in offline mode.");
     }
     const docRef = await adminDb.collection('artikelen').add(articleData);
     return { id: docRef.id, ...articleData };
@@ -427,11 +373,7 @@ export async function addArticle(articleData: Omit<Article, 'id'>): Promise<Arti
 
 export async function updateArticle(id: string, articleData: Partial<Omit<Article, 'id'>>): Promise<Article> {
     if (!isAdminSdkInitialized) {
-        console.warn(`Firebase not configured. Using mock data for updateArticle(${id}).`);
-        const articleIndex = mockDb.articles.findIndex(a => a.id === id);
-        if (articleIndex === -1) throw new Error("Mock article not found");
-        mockDb.articles[articleIndex] = { ...mockDb.articles[articleIndex], ...articleData };
-        return JSON.parse(JSON.stringify(mockDb.articles[articleIndex]));
+        throw new Error("Firebase not configured. Cannot update article in offline mode.");
     }
     const docRef = adminDb.collection('artikelen').doc(id);
     await docRef.update(articleData);
@@ -441,11 +383,7 @@ export async function updateArticle(id: string, articleData: Partial<Omit<Articl
 
 export async function deleteArticle(id: string): Promise<void> {
     if (!isAdminSdkInitialized) {
-        console.warn(`Firebase not configured. Using mock data for deleteArticle(${id}).`);
-        const initialLength = mockDb.articles.length;
-        mockDb.articles = mockDb.articles.filter(a => a.id !== id);
-        if (mockDb.articles.length === initialLength) throw new Error("Mock article not found for deletion");
-        return;
+        throw new Error("Firebase not configured. Cannot delete article in offline mode.");
     }
     await adminDb.collection('artikelen').doc(id).delete();
 }
