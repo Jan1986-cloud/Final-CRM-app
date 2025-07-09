@@ -1,18 +1,22 @@
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { MainNav } from "@/components/main-nav";
-import { BookUser } from "lucide-react";
+import { BookUser, Cloud, CloudOff } from "lucide-react";
+import { isAdminSdkInitialized } from "@/lib/firebase";
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const isConnected = isAdminSdkInitialized;
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -25,6 +29,32 @@ export default function AppLayout({
         <SidebarContent>
           <MainNav />
         </SidebarContent>
+        <SidebarFooter>
+          <div
+            className="p-2 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-2 flex justify-center"
+            title={
+              isConnected
+                ? "Cloud Connected"
+                : "Offline Mode. Data is not being saved to the cloud."
+            }
+          >
+            {isConnected ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Cloud className="h-4 w-4 text-primary" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  Cloud Connected
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CloudOff className="h-4 w-4 text-destructive" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  Offline Mode
+                </span>
+              </div>
+            )}
+          </div>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset className="flex flex-col">
         {children}
