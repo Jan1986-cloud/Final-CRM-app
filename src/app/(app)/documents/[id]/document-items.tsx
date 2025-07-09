@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import type { Article, Document, DocumentLine } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -118,8 +118,9 @@ export function DocumentItems({ document, articles }: DocumentItemsProps) {
     });
   }
 
-  if (document.regels.length === 0) {
-    return (
+  return (
+    <>
+      {document.regels.length === 0 ? (
         <div className="min-h-[200px] rounded-lg border border-dashed border-muted-foreground/30 flex flex-col items-center justify-center text-center p-8">
             <FilePlus2 className="h-10 w-10 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No Line Items</h3>
@@ -128,48 +129,47 @@ export function DocumentItems({ document, articles }: DocumentItemsProps) {
             </p>
             <Button className="mt-4" onClick={() => setAddDialogOpen(true)}>Add Line Item</Button>
         </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60%]">Description</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead className="text-right">Unit Price</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {document.regels.map((line) => (
-              <TableRow key={line.id}>
-                <TableCell className="font-medium">{line.omschrijving}</TableCell>
-                <TableCell>{line.aantal}</TableCell>
-                <TableCell className="text-right">
-                  {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(line.prijs_per_eenheid_excl_btw)}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                   {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(line.totaal_excl_btw)}
-                </TableCell>
-                <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => openDeleteAlert(line.id)} disabled={isPending}>
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex justify-end">
-        <Button onClick={() => setAddDialogOpen(true)} variant="outline">
-            <PlusCircle /> Add Line Item
-        </Button>
-      </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[60%]">Description</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead className="text-right">Unit Price</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {document.regels.map((line) => (
+                  <TableRow key={line.id}>
+                    <TableCell className="font-medium">{line.omschrijving}</TableCell>
+                    <TableCell>{line.aantal}</TableCell>
+                    <TableCell className="text-right">
+                      {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(line.prijs_per_eenheid_excl_btw)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                       {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(line.totaal_excl_btw)}
+                    </TableCell>
+                    <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => openDeleteAlert(line.id)} disabled={isPending}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={() => setAddDialogOpen(true)} variant="outline">
+                <PlusCircle /> Add Line Item
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Add Item Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
@@ -247,6 +247,6 @@ export function DocumentItems({ document, articles }: DocumentItemsProps) {
               </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
