@@ -23,11 +23,11 @@ function serialize<T>(doc: firestore.DocumentSnapshot): T {
 let hasLoggedDatastoreError = false;
 const logDatastoreModeError = () => {
     if (hasLoggedDatastoreError) return;
-    console.error("********************************************************************************************************");
-    console.error("*** PROJECT CONFIGURATION ERROR: Firestore is in Datastore Mode. *************************************");
-    console.error("*** This application requires Firestore in Native Mode. You must create a new project. ***************");
-    console.error("*** Falling back to OFFLINE MODE. Data is not being saved. *******************************************");
-    console.error("********************************************************************************************************");
+    console.warn("********************************************************************************************************");
+    console.warn("*** PROJECT CONFIGURATION ERROR: Firestore is in Datastore Mode. *************************************");
+    console.warn("*** This application requires Firestore in Native Mode. You must create a new project. ***************");
+    console.warn("*** Falling back to OFFLINE MODE. Data is not being saved. *******************************************");
+    console.warn("********************************************************************************************************");
     hasLoggedDatastoreError = true;
 };
 
